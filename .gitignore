@@ -1,8 +1,8 @@
-ips.txt
+iplist.txt
 vulnerableIPs.txt
-paused.conf
 *.txt
 *.png
 *.jpeg
 *.jpg
 *.vscode
+*.out
