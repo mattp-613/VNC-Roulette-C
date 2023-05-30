@@ -18,8 +18,9 @@ int main() {
 		printf("Scanning %s",ip);
 		ip[strcspn(ip, "\n")] = 0; // remove newline character
 
-		char command[68]; //TODO: 68 or 91? ip is in command
-		sprintf(command, "timeout 5 xwd -root -display %s:5900 | convert xwd:- screenshot%s.jpg", ip, ip);
+		char command[69];
+		
+		sprintf(command, "timeout 10 vncsnapshot -rect 0x0-800-600 %s:0 snapshot%s.jpg", ip, ip);
 
 		if(fork() == 0) {
 			int timeout = system(command);
@@ -28,9 +29,12 @@ int main() {
 			}
 			exit(0);
 		}
+
+		/*
 		else { //TODO: initially just waiting for fork to complete (set limit to forks for number of thread)
 			wait(NULL);
-		}
+		}*/
+
 	}
 
 	fclose(fp);
