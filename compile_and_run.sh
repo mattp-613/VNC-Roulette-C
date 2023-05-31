@@ -1,1 +1,1 @@
-gcc -o screenshotter VNC-Screenshotter.C && ./screenshotter.out
+gcc -o screenshotter.out VNC-Screenshotter.C && ./screenshotter.out

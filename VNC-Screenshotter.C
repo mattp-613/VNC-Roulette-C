@@ -7,7 +7,7 @@
 #include <semaphore.h>
 #include <fcntl.h> //O_CREAT
 
-#define MAX_THREADS 5 // maximum number of forks allowed (counting from 0)
+#define MAX_THREADS 100 // maximum number of forks allowed (counting from 0)
 sem_t *thread_sem; // semaphore for limiting forks
 
 int main() {
