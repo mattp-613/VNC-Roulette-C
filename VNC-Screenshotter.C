@@ -14,11 +14,15 @@ int main() {
 	char ip[17];
 	FILE *fp;
 
-	char thread_name[17];
-	sprintf(thread_name,"/thread_sem_%d",MAX_THREADS); //To ensure each # of threads is exclusive to their own file
-    thread_sem = sem_open(thread_name, O_CREAT | O_TRUNC, 0644, MAX_THREADS); //Named semaphore required for parent-child intercommunication
+    thread_sem = sem_open("/thread", O_CREAT | O_EXCL, 0644, MAX_THREADS); //Named semaphore required for parent-child intercommunication
+
 	if (thread_sem == SEM_FAILED) {
         perror("Error creating semaphore");
+        return 1;
+    }
+
+	if (sem_unlink("/thread") == -1) { //This is required to prevent the semaphore from lasting forever
+        perror("Error unlinking semaphore");
         return 1;
     }
 
@@ -59,10 +63,6 @@ int main() {
 
 	}
 
-	if (sem_unlink("/thread_sem") == -1) {
-        perror("Error unlinking semaphore");
-        return 1;
-    }
 	fclose(fp);
 	return 0;
 }
