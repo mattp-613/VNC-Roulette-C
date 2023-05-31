@@ -5,4 +5,4 @@ vulnerableIPs.txt
 *.jpeg
 *.jpg
 *.vscode
-*.out
+#*.out

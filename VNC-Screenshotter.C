@@ -7,14 +7,16 @@
 #include <semaphore.h>
 #include <fcntl.h> //O_CREAT
 
-#define MAX_THREADS 100 // maximum number of forks allowed (counting from 0)
+#define MAX_THREADS 10 // maximum number of forks allowed (counting from 0)
 sem_t *thread_sem; // semaphore for limiting forks
 
 int main() {
 	char ip[17];
 	FILE *fp;
 
-    thread_sem = sem_open("/thread_sem", O_CREAT /*| O_EXCL*/, 0644, MAX_THREADS); //Named semaphore required for parent-child intercommunication
+	char thread_name[17];
+	sprintf(thread_name,"/thread_sem_%d",MAX_THREADS); //To ensure each # of threads is exclusive to their own file
+    thread_sem = sem_open(thread_name, O_CREAT | O_TRUNC, 0644, MAX_THREADS); //Named semaphore required for parent-child intercommunication
 	if (thread_sem == SEM_FAILED) {
         perror("Error creating semaphore");
         return 1;
