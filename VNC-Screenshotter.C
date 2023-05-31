@@ -14,7 +14,7 @@ int main() {
 	char ip[17];
 	FILE *fp;
 
-    thread_sem = sem_open("/thread_sem1", O_CREAT /*| O_EXCL*/, 0644, MAX_THREADS); //Named semaphore required for parent-child intercommunication
+    thread_sem = sem_open("/thread_sem", O_CREAT /*| O_EXCL*/, 0644, MAX_THREADS); //Named semaphore required for parent-child intercommunication
 	if (thread_sem == SEM_FAILED) {
         perror("Error creating semaphore");
         return 1;
@@ -56,11 +56,11 @@ int main() {
 		}
 
 	}
+
 	if (sem_unlink("/thread_sem") == -1) {
         perror("Error unlinking semaphore");
         return 1;
     }
-	sem_unlink("thread_sem");
 	fclose(fp);
 	return 0;
 }
