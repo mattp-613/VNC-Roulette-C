@@ -4,10 +4,22 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <semaphore.h>
+#include <fcntl.h> //O_CREAT
+
+#define MAX_THREADS 5 // maximum number of forks allowed (counting from 0)
+sem_t *thread_sem; // semaphore for limiting forks
 
 int main() {
 	char ip[17];
 	FILE *fp;
+
+    thread_sem = sem_open("/thread_sem1", O_CREAT /*| O_EXCL*/, 0644, MAX_THREADS); //Named semaphore required for parent-child intercommunication
+	if (thread_sem == SEM_FAILED) {
+        perror("Error creating semaphore");
+        return 1;
+    }
+
 	fp = fopen("iplist.txt", "r");
 	if (fp == NULL) {
 		perror("Error opening file");
@@ -18,25 +30,37 @@ int main() {
 		printf("Scanning %s",ip);
 		ip[strcspn(ip, "\n")] = 0; // remove newline character
 
-		char command[69];
-		
-		sprintf(command, "timeout 10 vncsnapshot -rect 0x0-800-600 %s:0 snapshot%s.jpg", ip, ip);
+		char command[96];
+		sprintf(command, "timeout 10 vncsnapshot -quiet -rect 0x0-800-600 %s:0 snapshot%s.jpg", ip, ip);
+
+		if (sem_wait(thread_sem) == -1) {
+            perror("Error waiting on semaphore");
+            return 1;
+        }
 
 		if(fork() == 0) {
+
 			int timeout = system(command);
+
 			if(timeout != 0) {
     			printf("IP %s timed out.\n",ip);
 			}
+
+			if (sem_post(thread_sem) == -1) {
+                perror("Error releasing semaphore");
+                return 1;
+            }
+			sem_close(thread_sem);
 			exit(0);
+
 		}
 
-		/*
-		else { //TODO: initially just waiting for fork to complete (set limit to forks for number of thread)
-			wait(NULL);
-		}*/
-
 	}
-
+	if (sem_unlink("/thread_sem") == -1) {
+        perror("Error unlinking semaphore");
+        return 1;
+    }
+	sem_unlink("thread_sem");
 	fclose(fp);
 	return 0;
 }

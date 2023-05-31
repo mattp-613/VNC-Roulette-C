@@ -9,7 +9,7 @@ This is a script that will grab screenshots of IP's VNC from IP's given in a .tx
 
 Requirements:
 
-GCC to compile. That's it
+GCC to compile & the vncsnapshot package
 
 Instructions:
 
