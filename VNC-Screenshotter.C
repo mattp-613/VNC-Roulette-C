@@ -25,8 +25,8 @@ FILE *ipListFile = NULL;
 FILE *ipLeftFile = NULL;
 
 int create_thread_semaphore() {
-    /*
-    Creates a named semaphore for limiting the amount of threads. 
+	/*
+    Creates a named semaphore for limiting the amount of threads.
     A named semaphore is used over a regular
     semaphore due to the parent to child and child to child communication.
     */
@@ -43,8 +43,8 @@ int create_thread_semaphore() {
 }
 
 int create_write_semaphore() {
-     /*
-    Creates a named semaphore for limiting the amount of threads. 
+    /*
+    Creates a named semaphore for limiting the amount of threads.
     A named semaphore is used over a regular
     semaphore due to the parent to child and child to child communication.
     */
@@ -61,10 +61,10 @@ int create_write_semaphore() {
 }
 
 int open_file(FILE **file, const char *filename, const char *mode) {
-	/*
-	This function opens a file given the file pointer and the name of the file, with the mode of course.
-	It is basically fopen with error detection.
-	*/
+    /*
+    This function opens a file given the file pointer and the name of the file, with the mode of course.
+    It is basically fopen with error detection.
+    */
     *file = fopen(filename, mode);
     if (*file == NULL) {
         perror("Error opening file");
@@ -74,10 +74,10 @@ int open_file(FILE **file, const char *filename, const char *mode) {
 }
 
 void close_file(FILE **file) {
-	/*
-	This function closes a file given the file pointer variable. 
-	It is basically fclose with error detection.
-	*/
+    /*
+    This function closes a file given the file pointer variable.
+    It is basically fclose with error detection.
+    */
     if (*file != NULL) {
         fclose(*file);
         *file = NULL;
@@ -85,38 +85,47 @@ void close_file(FILE **file) {
 }
 
 void cleanup_semaphores() {
-	/*
-	This function cleans up the garbage created by the semaphores.
-	*/
+    /*
+    This function cleans up the garbage created by the semaphores.
+    */
     sem_close(write_sem);
     sem_close(thread_sem);
 }
 
-void cleanup_files(FILE **ipLeftFile, FILE **ipListFile) {
-	/*
-	This function cleans up the garbage created by the files.
-	*/
-    close_file(ipLeftFile);
-    close_file(ipListFile);
+void cleanup_files() {
+    /*
+    This function cleans up the garbage created by the files.
+    */
+    close_file(&ipLeftFile);
+    close_file(&ipListFile);
 }
 
 void cleanup() {
     // Cleanup function to be called on CTRL+C signal
-    cleanup_files(&ipLeftFile, &ipListFile);
+    cleanup_files();
     cleanup_semaphores();
     exit(0);
 }
 
 void handle_interrupt(int signum) {
-	/*
-	Handles the CTRL+C interrupt for the script. Garbage collection isn't necessarily required for this script
-	but it is good to do it anyways.
-	*/
+    /*
+    Handles the CTRL+C interrupt for the script. Garbage collection isn't necessarily required for this script
+    but it is good to do it anyways.
+    */
     printf("\n\n-----Interrupt signal received. Ending script...-----\n\n");
-	cleanup();
+    cleanup();
 }
 
-void process_ip(const char* ip) {
+void handle_child_exit(int signum) {
+    // Signal handler for child process termination
+    while (waitpid(-1, NULL, WNOHANG) > 0); 
+	// Reap all terminated child processes
+}
+
+void process_ip(const char *ip) {
+    /*
+    Attempts to connect, if so takes a screenshot.
+    */
     char command[96];
     char tail[96];
 
@@ -130,7 +139,13 @@ void process_ip(const char* ip) {
         cleanup();
     }
 
-    if (fork() == 0) {
+    pid_t child_pid = fork();
+    if (child_pid == -1) {
+        perror("Error creating child process");
+        cleanup();
+    } 
+	
+	else if (child_pid == 0) {
         if (sem_wait(write_sem) == -1) {
             perror("Error waiting on semaphore");
             cleanup();
@@ -156,7 +171,7 @@ void process_ip(const char* ip) {
         }
 
         cleanup();
-		exit(0);
+        exit(0);
     }
 }
 
@@ -185,14 +200,14 @@ int main() {
         }
     }
 
-	signal(SIGINT, handle_interrupt); //CTRL+C garbage cleanup
+    signal(SIGINT, handle_interrupt);     // CTRL+C garbage cleanup
+    signal(SIGCHLD, handle_child_exit);   // Handling child process termination
 
     while (fgets(ip, 17, ipLeftFile)) {
         ip[strcspn(ip, "\n")] = 0;
-		process_ip(ip);
-	}
+        process_ip(ip);
+    }
 
-    cleanup_files(&ipLeftFile, &ipListFile);
-    cleanup_semaphores();
+    cleanup();
     return 0;
 }
