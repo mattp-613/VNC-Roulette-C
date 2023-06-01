@@ -9,7 +9,7 @@
 #include <signal.h>
 
 // SETTINGS
-#define MAX_THREADS 20
+#define MAX_THREADS 400
 #define IP_LIST "iplist.txt"
 #define VULNERABLE_IP_LIST "iplist_vulnerable.txt"
 #define NONVULNERABLE_IP_LIST "iplist_nonvulnerable.txt"
@@ -108,8 +108,56 @@ void cleanup() {
 }
 
 void handle_interrupt(int signum) {
+	/*
+	Handles the CTRL+C interrupt for the script. Garbage collection isn't necessarily required for this script
+	but it is good to do it anyways.
+	*/
     printf("\n\n-----Interrupt signal received. Ending script...-----\n\n");
-    cleanup();
+	cleanup();
+}
+
+void process_ip(const char* ip) {
+    char command[96];
+    char tail[96];
+
+    printf("Scanning %s\n", ip);
+
+    // TODO: Attempt to connect, if possible, THEN Screenshot with a longer timeout!
+    sprintf(command, "timeout 10 vncsnapshot -quiet -rect 0x0-800-600 %s:0 snapshot_%s.jpg", ip, ip);
+
+    if (sem_wait(thread_sem) == -1) {
+        perror("Error waiting on semaphore");
+        cleanup();
+    }
+
+    if (fork() == 0) {
+        if (sem_wait(write_sem) == -1) {
+            perror("Error waiting on semaphore");
+            cleanup();
+        }
+
+        sprintf(tail, "tail -n +2 %s > %s.tmp && mv %s.tmp %s", IP_LEFT, IP_LEFT, IP_LEFT, IP_LEFT);
+        system(tail);
+
+        if (sem_post(write_sem) == -1) {
+            perror("Error releasing semaphore");
+            cleanup();
+        }
+
+        int timeout = system(command);
+
+        if (timeout != 0) {
+            printf("IP %s timed out.\n", ip);
+        }
+
+        if (sem_post(thread_sem) == -1) {
+            perror("Error releasing semaphore");
+            cleanup();
+        }
+
+        cleanup();
+		exit(0);
+    }
 }
 
 int main() {
@@ -140,55 +188,9 @@ int main() {
 	signal(SIGINT, handle_interrupt); //CTRL+C garbage cleanup
 
     while (fgets(ip, 17, ipLeftFile)) {
-        printf("Scanning %s", ip);
         ip[strcspn(ip, "\n")] = 0;
-
-        sprintf(command, "timeout 10 vncsnapshot -quiet -rect 0x0-800-600 %s:0 snapshot_%s.jpg", ip, ip);
-
-        if (sem_wait(thread_sem) == -1) {
-            perror("Error waiting on semaphore");
-            cleanup_files(&ipLeftFile, &ipListFile);
-            cleanup_semaphores();
-            return 1;
-        }
-
-        if (fork() == 0) {
-            if (sem_wait(write_sem) == -1) {
-                perror("Error waiting on semaphore");
-                cleanup_files(&ipLeftFile, &ipListFile);
-                cleanup_semaphores();
-                return 1;
-            }
-
-            sprintf(tail, "tail -n +2 %s > %s.tmp && mv %s.tmp %s", IP_LEFT, IP_LEFT, IP_LEFT, IP_LEFT);
-            system(tail);
-
-            if (sem_post(write_sem) == -1) {
-                perror("Error releasing semaphore");
-                cleanup_files(&ipLeftFile, &ipListFile);
-                cleanup_semaphores();
-                return 1;
-            }
-
-            int timeout = system(command);
-
-            if (timeout != 0) {
-                printf("IP %s timed out.\n", ip);
-            }
-
-            if (sem_post(thread_sem) == -1) {
-                perror("Error releasing semaphore");
-                cleanup_files(&ipLeftFile, &ipListFile);
-                cleanup_semaphores();
-                return 1;
-            }
-
-            cleanup_semaphores();
-            close_file(&ipLeftFile);
-            close_file(&ipListFile);
-            exit(0);
-        }
-    }
+		process_ip(ip);
+	}
 
     cleanup_files(&ipLeftFile, &ipListFile);
     cleanup_semaphores();
