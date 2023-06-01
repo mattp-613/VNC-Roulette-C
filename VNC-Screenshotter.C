@@ -7,12 +7,25 @@
 #include <semaphore.h>
 #include <fcntl.h> //O_CREAT
 
-#define MAX_THREADS 10 // maximum number of forks allowed (counting from 0)
+
+//SETTINGS
+#define MAX_THREADS 1 // maximum number of forks allowed (counting from 0)
+#define IP_LIST "iplist.txt"
+#define VULERNABLE_IP_LIST "iplist_vulnerable.txt"
+#define NONVULERNABLE_IP_LIST "iplist_nonvulnerable.txt"
+#define IP_LEFT "ipleft.txt"
+
+
+//OPTIONS
+#define LABEL_IPS 1 //Should there be ip list of vulrenable and/or non vulnerable IP's created?
+#define SAVE_IPS 1 //should we use an ip_left list to remove IP's already classified as vulernable/non-vulnerable?
+
 sem_t *thread_sem; // semaphore for limiting forks
 
 int main() {
 	char ip[17];
 	FILE *fp;
+
 
     thread_sem = sem_open("/thread", O_CREAT | O_EXCL, 0644, MAX_THREADS); //Named semaphore required for parent-child intercommunication
 
@@ -26,10 +39,18 @@ int main() {
         return 1;
     }
 
-	fp = fopen("iplist.txt", "r");
+	fp = fopen(IP_LIST, "r");
 	if (fp == NULL) {
 		perror("Error opening file");
 		return 1;
+	}
+
+	if(SAVE_IPS == 1){
+		FILE *fs;
+		fs = fopen(IP_LEFT, "r");
+		if (fs == NULL) {
+			//TODO: Copy IP_LIST To a new file IP_LEFT
+		}
 	}
 
 	while(fgets(ip, 17, fp)) {
@@ -45,17 +66,27 @@ int main() {
         }
 
 		if(fork() == 0) {
+			
+			//TODO: remove ip from ipsleft.txt
+			//use a file lock and remove index 0! this SHOULD Work!!!!!
 
 			int timeout = system(command);
 
 			if(timeout != 0) {
-    			printf("IP %s timed out.\n",ip);
+    			printf("IP %s timed out. Adding to %s\n",ip, NONVULERNABLE_IP_LIST);
+				//TODO: add to nonvulnerable txt here
+			}
+
+			else{
+				printf("IP %s successful. Screenshot taken. Adding to %s\n",ip, VULERNABLE_IP_LIST);
+				//TODO: add to vulnerable txt here
 			}
 
 			if (sem_post(thread_sem) == -1) {
                 perror("Error releasing semaphore");
                 return 1;
             }
+
 			sem_close(thread_sem);
 			exit(0);
 
