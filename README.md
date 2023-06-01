@@ -11,8 +11,9 @@ Requirements:
 
 GCC to compile & the vncsnapshot package. All libraries required to compile are on the top of the file (glibc and stuff)
 The compiled binary is included in the .out file.
-
 To compile, you may need to add the -pthread flag or the -lrt flag. I don't know what the -lrt flag does but it sometimes works.
+
+A Linux machine is heavily recommended as the commands executed by this script were tested and ran on a Linux machine. These commands can be seen in the script if interested.
 
 Instructions:
 

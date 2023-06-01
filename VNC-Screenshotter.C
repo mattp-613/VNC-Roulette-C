@@ -9,7 +9,7 @@
 
 
 //SETTINGS
-#define MAX_THREADS 1 // maximum number of forks allowed (counting from 0)
+#define MAX_THREADS 20 // maximum number of forks allowed (counting from 0)
 #define IP_LIST "iplist.txt"
 #define VULERNABLE_IP_LIST "iplist_vulnerable.txt"
 #define NONVULERNABLE_IP_LIST "iplist_nonvulnerable.txt"
@@ -24,6 +24,8 @@ sem_t *thread_sem; // semaphore for limiting forks
 sem_t *write_sem; // semaphore for limiting file writing (a file lock)
 
 int main() {
+	char command[96];
+	char tail[96];
 	char ip[17];
 	FILE *fp;
 	FILE *fs;
@@ -64,7 +66,6 @@ int main() {
 	fp = fopen(IP_LEFT, "r");
 	if (fp == NULL) {
 		printf("%s not detected. Creating it as a copy of %s...\n",IP_LEFT, IP_LIST);
-		char command[96];
 		sprintf(command, "cp %s %s", IP_LIST, IP_LEFT);
 		system(command);
 	}
@@ -74,8 +75,8 @@ int main() {
 		printf("Scanning %s",ip);
 		ip[strcspn(ip, "\n")] = 0; // remove newline character
 
-		char command[96];
 		sprintf(command, "timeout 10 vncsnapshot -quiet -rect 0x0-800-600 %s:0 snapshot_%s.jpg", ip, ip);
+
 		if (sem_wait(thread_sem) == -1) {
             perror("Error waiting on semaphore");
             return 1;
@@ -88,8 +89,10 @@ int main() {
             return 1;
         	}
 
-			//TODO: remove ip from ipsleft.txt
-			
+			//remove first line of fp
+			sprintf(tail, "tail -n +2 %s > %s.tmp && mv %s.tmp %s", IP_LEFT,IP_LEFT,IP_LEFT,IP_LEFT);
+			system(tail);
+
 			if (sem_post(write_sem) == -1) {
                 perror("Error releasing semaphore");
                 return 1;
@@ -98,13 +101,7 @@ int main() {
 			int timeout = system(command);
 
 			if(timeout != 0) {
-    			printf("IP %s timed out. Adding to %s\n",ip, NONVULERNABLE_IP_LIST);
-				//TODO: add to nonvulnerable txt here
-			}
-
-			else{
-				printf("IP %s successful. Screenshot taken. Adding to %s\n",ip, VULERNABLE_IP_LIST);
-				//TODO: add to vulnerable txt here
+    			printf("IP %s timed out.\n",ip);
 			}
 
 			if (sem_post(thread_sem) == -1) {
@@ -112,8 +109,8 @@ int main() {
                 return 1;
             }
 
-			sem_close(thread_sem); //TODO: Move fclose, semclose, etc to a CTRL+C exception
 			sem_close(write_sem);
+			sem_close(thread_sem); //TODO: Move fclose, semclose, etc to a CTRL+C exception
 			exit(0);
 
 		}
