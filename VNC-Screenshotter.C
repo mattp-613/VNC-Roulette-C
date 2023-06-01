@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <semaphore.h>
 #include <fcntl.h> //O_CREAT | O_EXCL
+#include <signal.h>
 
 // SETTINGS
 #define MAX_THREADS 20
@@ -19,6 +20,9 @@
 
 sem_t *thread_sem;
 sem_t *write_sem;
+
+FILE *ipListFile = NULL;
+FILE *ipLeftFile = NULL;
 
 int create_thread_semaphore() {
     /*
@@ -96,12 +100,22 @@ void cleanup_files(FILE **ipLeftFile, FILE **ipListFile) {
     close_file(ipListFile);
 }
 
+void cleanup() {
+    // Cleanup function to be called on CTRL+C signal
+    cleanup_files(&ipLeftFile, &ipListFile);
+    cleanup_semaphores();
+    exit(0);
+}
+
+void handle_interrupt(int signum) {
+    printf("\n\n-----Interrupt signal received. Ending script...-----\n\n");
+    cleanup();
+}
+
 int main() {
     char command[96];
     char tail[96];
     char ip[17];
-    FILE *ipListFile = NULL;
-    FILE *ipLeftFile = NULL;
 
     if (!create_thread_semaphore() || !create_write_semaphore()) {
         cleanup_semaphores();
@@ -122,6 +136,8 @@ int main() {
             return 1;
         }
     }
+
+	signal(SIGINT, handle_interrupt); //CTRL+C garbage cleanup
 
     while (fgets(ip, 17, ipLeftFile)) {
         printf("Scanning %s", ip);
