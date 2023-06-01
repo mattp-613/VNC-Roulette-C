@@ -55,22 +55,26 @@ int main() {
         return 1;
     }
 
-	fp = fopen(IP_LIST, "r");
-	if (fp == NULL) {
+	fs = fopen(IP_LIST, "r");
+	if (fs == NULL) {
 		perror("Error opening file");
 		return 1;
 	}
 
-	fs = fopen(IP_LEFT, "r");
-	if (fs == NULL) {
-		//TODO: Copy IP_LIST To a new file IP_LEFT
-		}
+	fp = fopen(IP_LEFT, "r");
+	if (fp == NULL) {
+		printf("%s not detected. Creating it as a copy of %s...\n",IP_LEFT, IP_LIST);
+		char command[96];
+		sprintf(command, "cp %s %s", IP_LIST, IP_LEFT);
+		system(command);
+	}
+
 
 	while(fgets(ip, 17, fp)) {
 		printf("Scanning %s",ip);
 		ip[strcspn(ip, "\n")] = 0; // remove newline character
 
-		char command[69];
+		char command[96];
 		sprintf(command, "timeout 10 vncsnapshot -quiet -rect 0x0-800-600 %s:0 snapshot_%s.jpg", ip, ip);
 		if (sem_wait(thread_sem) == -1) {
             perror("Error waiting on semaphore");
