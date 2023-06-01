@@ -18,3 +18,9 @@ A Linux machine is heavily recommended as the commands executed by this script w
 Instructions:
 
 Make an iplist.txt file and run the script. You can use the shellscript provided to compile and run or run the binary itself.
+
+Use ulimit -u (big number here) to increase the amount of forks the script can create. This is very important for running the script for an extended period of time.
+
+Difference Between Python Script:
+
+This script is faster and has less issues, and has way less issues setting up the environment to run the script.
