@@ -101,7 +101,9 @@ void cleanup_files() {
 }
 
 void cleanup() {
-    // Cleanup function to be called on CTRL+C signal
+    /*
+    Cleanup function to be called on CTRL+C signal or general garbage collection.
+   */
     cleanup_files();
     cleanup_semaphores();
     exit(0);
@@ -117,9 +119,10 @@ void handle_interrupt(int signum) {
 }
 
 void handle_child_exit(int signum) {
-    // Signal handler for child process termination
-    while (waitpid(-1, NULL, WNOHANG) > 0); 
-	// Reap all terminated child processes
+    /*
+    Signal handler for child process termination.
+    */
+    while (waitpid(-1, NULL, WNOHANG) > 0); // Reap all terminated child processes
 }
 
 void process_ip(const char *ip) {
@@ -200,8 +203,8 @@ int main() {
         }
     }
 
-    signal(SIGINT, handle_interrupt);     // CTRL+C garbage cleanup
-    signal(SIGCHLD, handle_child_exit);   // Handling child process termination
+    signal(SIGINT, handle_interrupt); // CTRL+C garbage cleanup
+    signal(SIGCHLD, handle_child_exit); // Handling child process termination
 
     while (fgets(ip, 17, ipLeftFile)) {
         ip[strcspn(ip, "\n")] = 0;
