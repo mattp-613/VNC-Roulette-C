@@ -5,119 +5,176 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <semaphore.h>
-#include <fcntl.h> //O_CREAT
+#include <fcntl.h> //O_CREAT | O_EXCL
 
-
-//SETTINGS
-#define MAX_THREADS 20 // maximum number of forks allowed (counting from 0)
+// SETTINGS
+#define MAX_THREADS 20
 #define IP_LIST "iplist.txt"
-#define VULERNABLE_IP_LIST "iplist_vulnerable.txt"
-#define NONVULERNABLE_IP_LIST "iplist_nonvulnerable.txt"
+#define VULNERABLE_IP_LIST "iplist_vulnerable.txt"
+#define NONVULNERABLE_IP_LIST "iplist_nonvulnerable.txt"
 #define IP_LEFT "ipleft.txt"
 
+// OPTIONS
+#define LABEL_IPS 1
 
-//OPTIONS
-#define LABEL_IPS 1 //Should there be ip list of vulrenable and/or non vulnerable IP's created?
+sem_t *thread_sem;
+sem_t *write_sem;
 
+int create_thread_semaphore() {
+    /*
+    Creates a named semaphore for limiting the amount of threads. 
+    A named semaphore is used over a regular
+    semaphore due to the parent to child and child to child communication.
+    */
+    thread_sem = sem_open("/thread", O_CREAT | O_EXCL, 0644, MAX_THREADS);
+    if (thread_sem == SEM_FAILED) {
+        perror("Error creating semaphore");
+        return 0;
+    }
+    if (sem_unlink("/thread") == -1) { //This is required to prevent the semaphore from lasting forever
+        perror("Error unlinking semaphore");
+        return 0;
+    }
+    return 1;
+}
 
-sem_t *thread_sem; // semaphore for limiting forks
-sem_t *write_sem; // semaphore for limiting file writing (a file lock)
+int create_write_semaphore() {
+     /*
+    Creates a named semaphore for limiting the amount of threads. 
+    A named semaphore is used over a regular
+    semaphore due to the parent to child and child to child communication.
+    */
+    write_sem = sem_open("/write", O_CREAT | O_EXCL, 0645, 1);
+    if (write_sem == SEM_FAILED) {
+        perror("Error creating semaphore");
+        return 0;
+    }
+    if (sem_unlink("/write") == -1) { //This is required to prevent the semaphore from lasting forever
+        perror("Error unlinking semaphore");
+        return 0;
+    }
+    return 1;
+}
+
+int open_file(FILE **file, const char *filename, const char *mode) {
+	/*
+	This function opens a file given the file pointer and the name of the file, with the mode of course.
+	It is basically fopen with error detection.
+	*/
+    *file = fopen(filename, mode);
+    if (*file == NULL) {
+        perror("Error opening file");
+        return 0;
+    }
+    return 1;
+}
+
+void close_file(FILE **file) {
+	/*
+	This function closes a file given the file pointer variable. 
+	It is basically fclose with error detection.
+	*/
+    if (*file != NULL) {
+        fclose(*file);
+        *file = NULL;
+    }
+}
+
+void cleanup_semaphores() {
+	/*
+	This function cleans up the garbage created by the semaphores.
+	*/
+    sem_close(write_sem);
+    sem_close(thread_sem);
+}
+
+void cleanup_files(FILE **ipLeftFile, FILE **ipListFile) {
+	/*
+	This function cleans up the garbage created by the files.
+	*/
+    close_file(ipLeftFile);
+    close_file(ipListFile);
+}
 
 int main() {
-	char command[96];
-	char tail[96];
-	char ip[17];
-	FILE *fp;
-	FILE *fs;
+    char command[96];
+    char tail[96];
+    char ip[17];
+    FILE *ipListFile = NULL;
+    FILE *ipLeftFile = NULL;
 
-    thread_sem = sem_open("/thread", O_CREAT | O_EXCL, 0644, MAX_THREADS); //Named semaphore required for parent-child intercommunication
-
-	if (thread_sem == SEM_FAILED) {
-        perror("Error creating semaphore");
+    if (!create_thread_semaphore() || !create_write_semaphore()) {
+        cleanup_semaphores();
         return 1;
     }
 
-	if (sem_unlink("/thread") == -1) { //This is required to prevent the semaphore from lasting forever
-        perror("Error unlinking semaphore");
+    if (!open_file(&ipListFile, IP_LIST, "r")) {
+        cleanup_semaphores();
         return 1;
     }
 
-	//Writing to file semaphore
-	//This is to ensure only one thread writes to a file at a time!
-	
-	write_sem = sem_open("/write", O_CREAT | O_EXCL, 0645, 1); //Named semaphore required for parent-child intercommunication
-
-	if (write_sem == SEM_FAILED) {
-        perror("Error creating semaphore");
-        return 1;
+    if (!open_file(&ipLeftFile, IP_LEFT, "r")) {
+        printf("%s not detected. Creating it as a copy of %s...\n", IP_LEFT, IP_LIST);
+        sprintf(command, "cp %s %s", IP_LIST, IP_LEFT);
+        system(command);
+        if (!open_file(&ipLeftFile, IP_LEFT, "r")) {
+            cleanup_semaphores();
+            return 1;
+        }
     }
 
-	if (sem_unlink("/write") == -1) { //This is required to prevent the semaphore from lasting forever
-        perror("Error unlinking semaphore");
-        return 1;
-    }
+    while (fgets(ip, 17, ipLeftFile)) {
+        printf("Scanning %s", ip);
+        ip[strcspn(ip, "\n")] = 0;
 
-	fs = fopen(IP_LIST, "r");
-	if (fs == NULL) {
-		perror("Error opening file");
-		return 1;
-	}
+        sprintf(command, "timeout 10 vncsnapshot -quiet -rect 0x0-800-600 %s:0 snapshot_%s.jpg", ip, ip);
 
-	fp = fopen(IP_LEFT, "r");
-	if (fp == NULL) {
-		printf("%s not detected. Creating it as a copy of %s...\n",IP_LEFT, IP_LIST);
-		sprintf(command, "cp %s %s", IP_LIST, IP_LEFT);
-		system(command);
-	}
-
-
-	while(fgets(ip, 17, fp)) {
-		printf("Scanning %s",ip);
-		ip[strcspn(ip, "\n")] = 0; // remove newline character
-
-		sprintf(command, "timeout 10 vncsnapshot -quiet -rect 0x0-800-600 %s:0 snapshot_%s.jpg", ip, ip);
-
-		if (sem_wait(thread_sem) == -1) {
+        if (sem_wait(thread_sem) == -1) {
             perror("Error waiting on semaphore");
+            cleanup_files(&ipLeftFile, &ipListFile);
+            cleanup_semaphores();
             return 1;
         }
 
-		if(fork() == 0) {
-			
-			if (sem_wait(write_sem) == -1) {
-            perror("Error waiting on semaphore");
-            return 1;
-        	}
-
-			//remove first line of fp
-			sprintf(tail, "tail -n +2 %s > %s.tmp && mv %s.tmp %s", IP_LEFT,IP_LEFT,IP_LEFT,IP_LEFT);
-			system(tail);
-
-			if (sem_post(write_sem) == -1) {
-                perror("Error releasing semaphore");
+        if (fork() == 0) {
+            if (sem_wait(write_sem) == -1) {
+                perror("Error waiting on semaphore");
+                cleanup_files(&ipLeftFile, &ipListFile);
+                cleanup_semaphores();
                 return 1;
             }
 
-			int timeout = system(command);
+            sprintf(tail, "tail -n +2 %s > %s.tmp && mv %s.tmp %s", IP_LEFT, IP_LEFT, IP_LEFT, IP_LEFT);
+            system(tail);
 
-			if(timeout != 0) {
-    			printf("IP %s timed out.\n",ip);
-			}
-
-			if (sem_post(thread_sem) == -1) {
+            if (sem_post(write_sem) == -1) {
                 perror("Error releasing semaphore");
+                cleanup_files(&ipLeftFile, &ipListFile);
+                cleanup_semaphores();
                 return 1;
             }
 
-			sem_close(write_sem);
-			sem_close(thread_sem); //TODO: Move fclose, semclose, etc to a CTRL+C exception
-			exit(0);
+            int timeout = system(command);
 
-		}
+            if (timeout != 0) {
+                printf("IP %s timed out.\n", ip);
+            }
 
-	}
+            if (sem_post(thread_sem) == -1) {
+                perror("Error releasing semaphore");
+                cleanup_files(&ipLeftFile, &ipListFile);
+                cleanup_semaphores();
+                return 1;
+            }
 
-	fclose(fp);
-	fclose(fs);
-	return 0;
+            cleanup_semaphores();
+            close_file(&ipLeftFile);
+            close_file(&ipListFile);
+            exit(0);
+        }
+    }
+
+    cleanup_files(&ipLeftFile, &ipListFile);
+    cleanup_semaphores();
+    return 0;
 }
