@@ -24,7 +24,6 @@ sem_t *write_sem;
 FILE *ipListFile = NULL;
 FILE *ipLeftFile = NULL;
 
-int shutup = 0;
 
 int create_thread_semaphore() {
 	/*
@@ -186,15 +185,13 @@ int main() {
     char ip[17];
 
     if (!create_thread_semaphore() || !create_write_semaphore()) {
-        cleanup_semaphores();
-        //TODO: perror for semaphore creation here
-        return 1;
+        perror("Error creating semaphores");
+        cleanup();
     }
 
     if (!open_file(&ipListFile, IP_LIST, "r")) {
-        cleanup_semaphores();
-        //TODO: perror for semaphore creation here
-        return 1;
+        perror("Error opening file");
+        cleanup();
     }
 
     if (!open_file(&ipLeftFile, IP_LEFT, "r")) {
@@ -202,8 +199,7 @@ int main() {
         sprintf(command, "cp %s %s", IP_LIST, IP_LEFT);
         system(command);
         if (!open_file(&ipLeftFile, IP_LEFT, "r")) {
-            cleanup_semaphores();
-            return 1;
+            cleanup();
         }
     }
 
