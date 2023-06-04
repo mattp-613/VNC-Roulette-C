@@ -9,7 +9,7 @@
 #include <signal.h>
 
 // SETTINGS
-#define MAX_THREADS 400
+#define MAX_THREADS 80 //You want roughly twenty threads for every core according to my testing
 #define IP_LIST "iplist.txt"
 #define VULNERABLE_IP_LIST "iplist_vulnerable.txt"
 #define NONVULNERABLE_IP_LIST "iplist_nonvulnerable.txt"
@@ -23,6 +23,8 @@ sem_t *write_sem;
 
 FILE *ipListFile = NULL;
 FILE *ipLeftFile = NULL;
+
+int shutup = 0;
 
 int create_thread_semaphore() {
 	/*
@@ -44,7 +46,7 @@ int create_thread_semaphore() {
 
 int create_write_semaphore() {
     /*
-    Creates a named semaphore for limiting the amount of threads.
+    Creates a named semaphore to allow only one thread to write to the .tmp file at a time.
     A named semaphore is used over a regular
     semaphore due to the parent to child and child to child communication.
     */
@@ -103,7 +105,7 @@ void cleanup_files() {
 void cleanup() {
     /*
     Cleanup function to be called on CTRL+C signal or general garbage collection.
-   */
+    */
     cleanup_files();
     cleanup_semaphores();
     exit(0);
@@ -185,11 +187,13 @@ int main() {
 
     if (!create_thread_semaphore() || !create_write_semaphore()) {
         cleanup_semaphores();
+        //TODO: perror for semaphore creation here
         return 1;
     }
 
     if (!open_file(&ipListFile, IP_LIST, "r")) {
         cleanup_semaphores();
+        //TODO: perror for semaphore creation here
         return 1;
     }
 
