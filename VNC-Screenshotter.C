@@ -25,6 +25,8 @@ FILE *ipListFile = NULL;
 FILE *ipLeftFile = NULL;
 
 
+//TODO: REFACTOR THESE CREATE_THREAD METHODS (not really necessary, but required if more)
+
 int create_thread_semaphore() {
 	/*
     Creates a named semaphore for limiting the amount of threads.

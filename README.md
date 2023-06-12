@@ -18,8 +18,7 @@ A Linux machine is heavily recommended as the commands executed by this script w
 Instructions:
 
 Make an iplist.txt file and run the script. You can use the shellscript provided to compile and run or run the binary itself.
-
-Use ulimit -u (big number here) to increase the amount of forks the script can create. This is very important for running the script for an extended period of time.
+Python scripts are provided to both use a mass scanner VNCMassscan.py on a specified range of IP's and to parse them into a long list of just the IP's using IPparser.py
 
 Difference Between Python Script:
 
