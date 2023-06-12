@@ -6,9 +6,9 @@ import os
 import shutil
 
 def parseIPs(toFormat, ipFile):
-    if os.path.isfile(ipFile):
-        print('List of ips detected.')
-        with open(ipFile) as f:
+    if os.path.isfile(toFormat):
+        print('File not found: {}.'.format(toFormat))
+        with open(toFormat) as f:
             lines = f.readlines()
             ips = []
             for line in lines:
