@@ -6,11 +6,11 @@ import os
 import shutil
 
 def parseIPs(toFormat, ipFile):
+    ips = []
     if os.path.isfile(toFormat):
-        print('File not found: {}.'.format(toFormat))
+        print('File found: {}.'.format(toFormat))
         with open(toFormat) as f:
             lines = f.readlines()
-            ips = []
             for line in lines:
                 parsedLine = line.split(" ")
                 try:
@@ -19,7 +19,14 @@ def parseIPs(toFormat, ipFile):
                     print("The following line does not work. Skipping line:")
                     print(line)
                     print("")
-            shutil.copyfile(toFormat,ipFile)
+            f.close()
+
+        #put ips list into a file
+        if os.path.isfile(ipFile):
+            print('File found: {}.'.format(ipFile))
+            with open(ipFile, "a") as f: 
+                    f.write('\n'.join(ips))
+                    f.write('\n')
             f.close()
 
 def main():
