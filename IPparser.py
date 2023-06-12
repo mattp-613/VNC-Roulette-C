@@ -5,10 +5,10 @@
 import os
 import shutil
 
-def parseIPs(textFile):
-    if os.path.isfile(textFile):
+def parseIPs(toFormat, ipFile):
+    if os.path.isfile(ipFile):
         print('List of ips detected.')
-        with open(textFile) as f:
+        with open(ipFile) as f:
             lines = f.readlines()
             ips = []
             for line in lines:
@@ -19,12 +19,13 @@ def parseIPs(textFile):
                     print("The following line does not work. Skipping line:")
                     print(line)
                     print("")
-            shutil.copyfile(textFile,textFile)
+            shutil.copyfile(toFormat,ipFile)
             f.close()
 
 def main():
+    toFormat = "ips.txt" #file name of ips that have to be formatted
     ipFile = "iplist.txt" #replace name of file here
-    parseIPs(ipFile)
+    parseIPs(toFormat, ipFile)
 
 if __name__ == '__main__':
     main()
