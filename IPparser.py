@@ -3,6 +3,7 @@
 #The bullshit from the masscan script
 
 import os
+import shutil
 
 def parseIPs(textFile):
     if os.path.isfile(textFile):
@@ -18,6 +19,7 @@ def parseIPs(textFile):
                     print("The following line does not work. Skipping line:")
                     print(line)
                     print("")
+            shutil.copyfile(textFile,textFile)
             f.close()
 
 def main():
